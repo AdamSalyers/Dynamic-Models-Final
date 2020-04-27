@@ -6,6 +6,7 @@
 import numpy as np
 import math
 import matplotlib.pyplot as plt
+import time
 
 class flock():
     def init_wrm(self, ln_wrm, p):
@@ -13,48 +14,64 @@ class flock():
         #We want to add segments to the worm in random directions
         my_wrms = []#a matrix of worm locations
         for pos in p:
+            #print(pos)
             pos = pos.tolist()
             #print("Pos is:", pos)
             visited = [pos] #keep track of position already in the worm and to will be the list of the final worm.
-            last = pos #Set our starting point
             #print("visited is: ", visited)
             ln = 1
             while ln < ln_wrm: #loop through until we have reached the length of our worm
                 np.random.shuffle(directions)
                 for direction in directions:#randomly shuffle the directions
                     if direction == 'N':
-                        if [last[0]+1, last[1]] not in visited:
+                        if [visited[-1][0]+1, visited[-1][1]] not in visited:
                             ln += 1
-                            visited.append([last[0]+1, last[1]])#If the point is not already visited we add it 
+                            visited.append([visited[-1][0]+1, visited[-1][1]])#If the point is not already visited we add it 
                             break
                     elif direction == 'S':
-                        if [last[0]-1, last[1]] not in visited:
+                        if [visited[-1][0]-1, visited[-1][1]] not in visited:
                             ln += 1
-                            visited.append([last[0]-1, last[1]])
+                            visited.append([visited[-1][0]-1, visited[-1][1]])
                             break
                     elif direction == 'E':
-                        if [last[0], last[1]+1] not in visited:
+                        if [visited[-1][0], visited[-1][1]+1] not in visited:
                             ln += 1
-                            visited.append([last[0], last[1]+1])
+                            visited.append([visited[-1][0], visited[-1][1]+1])
                             break
                     elif direction == 'W':
-                        if [last[0], last[1]-1] not in visited:
+                        if [visited[-1][0], visited[-1][1]-1] not in visited:
                             ln += 1
-                            visited.append((last[0], last[1]-1))
+                            visited.append([visited[-1][0], visited[-1][1]-1])
                             break
             my_wrms.append(visited)#append our worm to the list of worms
         return my_wrms
                 
-    def upd_wrm(self, wrm_pos, v, L):
-        for i in wrm_pos:
-            pos = i[0][0]#Get cordinates of head of worm
-            pos += v#add v then make sure we stay in bounds
-            if pos[0][0] > L/2: pos[0] -= L
-            if pos[0][0] < -L/2: pos[0] += L
-            if pos[0][1] > L/2: pos[1] -= L
-            if pos[0][1] < -L/2: pos[1] += L
-            wrm_pos.pop()
-            wrm_pos.insert(0,pos)
+    def upd_wrm(self, wrm_pos, v, L):        
+        for i in range(0,len(wrm_pos)):
+            new_head = [0.0, 0.0]
+
+            #used as a temporary variable to work on the current worms positioning
+            curr_worm = wrm_pos[i]
+
+            #Get cordinates of head of worm
+            curr_worm_head = curr_worm[0]
+            
+            new_head[0] = curr_worm_head[0] + v[i][0]#add v then make sure we stay in bounds
+            new_head[1] = curr_worm_head[1] + v[i][1]#add v then make sure we stay in bounds
+            
+            #make checks on the boundaries
+            if new_head[0] > L/2: new_head[0] -= L
+            if new_head[0] < -L/2: new_head[0] += L
+            if new_head[1] > L/2: new_head[1] -= L
+            if new_head[1] < -L/2: new_head[1] += L
+
+            #remove the last position of the current worm, i.e. the place its moving from
+            curr_worm.pop()
+            #add the new head position to the front of the current worm
+            curr_worm.insert(0,new_head)
+            #update position in array that is returned
+            wrm_pos[i] = curr_worm
+        
         return wrm_pos
         
     def flocking_python(self,c1=0.00001,c2=0.01,c3=1,c4=0.01):
@@ -78,9 +95,14 @@ class flock():
         #Initialize
         p = P*np.random.vonmises(mu,kappa, size=(N,2))#A random circular probabibility distribution
         wrm_pos = self.init_wrm(ln_wrm,p)#Get our initial Worm Positions
+        print(len(wrm_pos))
+        print(len(wrm_pos[0]))
+        print(len(wrm_pos[0][0]))
         v = V*np.random.randn(N,2)#Not really sure how we should set initial velocities
         #Initializing plot
         plt.ion()
+        fig = plt.figure()
+        
 
 
         for i in range(0, frames):
@@ -132,13 +154,14 @@ class flock():
             #Update position
             v *= delta
             wrm_pos = self.upd_wrm(wrm_pos, v, L)#update worm position
+            #print(len(wrm_pos[0]))
             
             plt.xlim(-limit, limit)
             plt.ylim(-limit, limit)
             for worms in wrm_pos:
                 plt.plot(worms)
             plt.show()
-
+            
             pfinal.append(wrm_pos)
         return pfinal
 

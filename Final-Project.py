@@ -50,6 +50,7 @@ class flock():
                 
     def upd_wrm(self, wrm_pos, v, L):
         print("Original max position: ", wrm_pos[0][0])
+        
         for i in range(0,len(wrm_pos)):
             new_head = [0.0, 0.0]
 
@@ -80,34 +81,65 @@ class flock():
         
         return wrm_pos
     
-    #def run_sim(self, c1=0.001,c2=0.01,c3=1,c4=0.01):
-    #        N = 400 #No. of Worms
-    #        frames = 10 #No. of frames
-    #        limit = 100 #Axis Limits
-    #        L  = limit*2
-    #        ln_wrm = 5 #length of each worm
-    #        mu = 0.0 #starting point of our cluster
-    #        kappa = 10.0 #starting dispersion
-    #        pfinal = []
-    #        P = 10 #Spread of initial position (gaussian)
-    #        V = 10 #Spread of initial velocity (gaussian)
-    #        delta = 1 #Time Step
-    #        p = P*np.random.vonmises(mu,kappa, size=(N,2))#A random circular probabibility distribution
-    #        wrm_pos = self.init_wrm(ln_wrm,p)#Get our initial Worm Positions
-    #        print(len(wrm_pos))
-    #        print(len(wrm_pos[0]))
-    #        print(len(wrm_pos[0][0]))
-    #        #Initializing plot
-    #        plt.ion()
+
             
-            
-            #for i in range(0, frames):
+    def check_to_branch(self, wrm_pos, max_branches, branches, frame):
+        x_avg = 0.0
+        y_avg = 0.0
+        all_x = []
+        all_y = []
+        worm_branch_index_counter = 0
+        print("max branches: ", max_branches)
+        print("frame: ", frame)
+        if (len(branches) >=  max_branches or frame <= 10):
+            return branches
+        else:
+            for i in range(0, len(wrm_pos)):
+                #get all of worms x position
+                wx = [wrm_pos[i][0][0],wrm_pos[i][1][0],wrm_pos[i][2][0],wrm_pos[i][3][0],wrm_pos[i][4][0]]
+                #get all of worms y position
+                wy = [wrm_pos[i][0][1],wrm_pos[i][1][1],wrm_pos[i][2][1],wrm_pos[i][3][1],wrm_pos[i][4][1]]
+                #print("sum: ", wx)
+                #print("avg: ", sum(wx)/5)
+                #average the worms points to find center of mass of worm
+                all_x.append(sum(wx)/5)
+                all_y.append(sum(wy)/5)
+            #average all worms to find center of mass of blob
+            x_avg = sum(all_x)/len(wrm_pos)
+            y_avg = sum(all_y)/len(wrm_pos)
+            #find differnce in ranges between x and y, this is the rough radius
+            #average the two to find a better approximation and divide in two for radius
+            max_x = max(all_x)
+            min_x = min(all_x)
+            #print("x diff: ", max_x-min_x)
+            max_y = max(all_y)
+            min_y = min(all_y)
+            #print("y diff: ", max_y-min_y)
+            #drb = distance from center of mass of blob required to branch
+            drb = (sum([max_x-min_x, max_y-min_y])/4)
+            #print("drb: ", drb)
+            #loop through all worms to see if they are able to branch
+            for tempx,tempy in zip(all_x, all_y):
+                incir = self.in_circle(x_avg, y_avg, drb, tempx, tempy)
+                #branches that pass this if statement are able to branch and are appened to branches
+                if incir == False and len(branches) < max_branches and worm_branch_index_counter not in branches:
+                    branches.append(worm_branch_index_counter)
+                worm_branch_index_counter += 1
+        
+            return branches
+        
+    
+        
+    def in_circle(self, center_x, center_y, radius, x, y):
+        square_dist = (center_x - x) ** 2 + (center_y - y) ** 2
+        return square_dist <= radius ** 2
+        
                 
     
-    def flocking_python(self,c1=0.001,c2=0.01,c3=1,c4=0.5):
+    def flocking_python(self,c1=0.001,c2=0.01,c3=1,c4=.90):
         N = 200 #No. of Worms
-        frames = 10 #No. of frames
-        limit = 100 #Axis Limits
+        frames = 20 #No. of frames
+        limit = 40 #Axis Limits
         L  = limit*2
         ln_wrm = 5 #length of each worm
         mu = 0.0 #starting point of our cluster
@@ -121,6 +153,9 @@ class flock():
         #c3 = 1 #Heading scaling factor
         #c4 = 0.01 #Randomness scaling factor
         vlimit = 1 #Maximum velocity
+        
+        max_branches = int(N*0.10)
+        branches = []
 
         #Initialize
         p = P*np.random.vonmises(mu,kappa, size=(N,2))#A random circular probabibility distribution
@@ -144,7 +179,10 @@ class flock():
             
             if (np.linalg.norm(v3) > vlimit): #limit maximum velocity
                v3 = v3*vlimit/np.linalg.norm(v3)
-
+            
+            branches = self.check_to_branch(wrm_pos, max_branches, branches, i)
+            print("branches length: ", len(branches))
+            print("branches: ", branches)
             for n in range(0, N):
                 p = np.array(wrm_pos[n])
                 pn = p.mean(axis=0)

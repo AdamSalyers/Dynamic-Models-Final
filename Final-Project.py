@@ -6,6 +6,7 @@
 import numpy as np
 import math
 import matplotlib.pyplot as plt
+import random
 
 
 class flock():
@@ -92,7 +93,7 @@ class flock():
         print("max branches: ", max_branches)
         print("frame: ", frame)
         if (len(branches) >=  max_branches or frame <= 10):
-            return branches
+            return branches, (x_avg, y_avg)
         else:
             for i in range(0, len(wrm_pos)):
                 #get all of worms x position
@@ -126,9 +127,30 @@ class flock():
                     branches.append(worm_branch_index_counter)
                 worm_branch_index_counter += 1
         
-            return branches
+            return branches, (x_avg, y_avg)
         
-    
+    def branching_velocity(self, wrm, center):
+        #get all of worms x position
+        wx = [wrm[0][0],wrm[1][0],wrm[2][0],wrm[3][0],wrm[4][0]]
+        x_pos = sum(wx)/5
+        #get all of worms y position
+        wy = [wrm[0][1],wrm[1][1],wrm[2][1],wrm[3][1],wrm[4][1]]
+        y_pos = sum(wy)/5
+        print("center: ",center)
+        print("c x: ",center[0])
+        print("c y: ",center[1])
+        #get a random number between 0.5 and 1.0, this is what the branching worms velocity will sum to
+        total_vel = random.uniform(0.5,1.0)
+        print("total velocity: ",total_vel)
+        #find rise and run between worm center of mass and worm blob center of mass then sum
+        pos_sum = ((x_pos-center[0])+(y_pos-center[1]))
+        #divide total velocity by pos_sum
+        ratio = total_vel/pos_sum
+        #result is a velocity in the opposite direction of the worm blob center of mass
+        x_vel = x_pos*ratio
+        y_vel = y_pos*ratio
+        print("returned array: ", np.array([[x_vel, y_vel]]))
+        return np.array([[x_vel, y_vel]])
         
     def in_circle(self, center_x, center_y, radius, x, y):
         square_dist = (center_x - x) ** 2 + (center_y - y) ** 2
@@ -180,7 +202,7 @@ class flock():
             if (np.linalg.norm(v3) > vlimit): #limit maximum velocity
                v3 = v3*vlimit/np.linalg.norm(v3)
             
-            branches = self.check_to_branch(wrm_pos, max_branches, branches, i)
+            branches, blob_center = self.check_to_branch(wrm_pos, max_branches, branches, i)
             print("branches length: ", len(branches))
             print("branches: ", branches)
             for n in range(0, N):
@@ -214,9 +236,15 @@ class flock():
                    
                 #Compute random velocity component v4
                 v4 = c4*np.random.randn(1,2)
+                
                 #Update velocity
                 #print("Shapes: v1:",v1[n].shape, "v2:",v2[n].shape,"v3:",v3.shape,v)
-                v[n] = v1[n]+v2[n]+v3+v4
+                if n in branches:
+                    v[n] = self.branching_velocity(wrm_pos[n], blob_center)
+                    print("branching v[n]: ", v[n])
+                else:
+                    v[n] = v1[n]+v2[n]+v3+v4
+                    print("non-branching v[n]: ", v[n])
                 
             #Update position
             v *= delta

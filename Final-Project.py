@@ -90,10 +90,12 @@ class flock():
         all_x = []
         all_y = []
         worm_branch_index_counter = 0
+        #drb = distance from center of mass of blob required to branch
+        drb = 0.0
         print("max branches: ", max_branches)
         print("frame: ", frame)
         if (len(branches) >=  max_branches or frame <= 10):
-            return branches, (x_avg, y_avg)
+            return branches, (x_avg, y_avg), drb
         else:
             for i in range(0, len(wrm_pos)):
                 #get all of worms x position
@@ -116,7 +118,6 @@ class flock():
             max_y = max(all_y)
             min_y = min(all_y)
             #print("y diff: ", max_y-min_y)
-            #drb = distance from center of mass of blob required to branch
             drb = (sum([max_x-min_x, max_y-min_y])/4)
             #print("drb: ", drb)
             #loop through all worms to see if they are able to branch
@@ -127,30 +128,45 @@ class flock():
                     branches.append(worm_branch_index_counter)
                 worm_branch_index_counter += 1
         
-            return branches, (x_avg, y_avg)
+            return branches, (x_avg, y_avg), drb
         
-    def branching_velocity(self, wrm, center):
+    def branching_route(self, wrm, center, n, drb):
         #get all of worms x position
         wx = [wrm[0][0],wrm[1][0],wrm[2][0],wrm[3][0],wrm[4][0]]
         x_pos = sum(wx)/5
         #get all of worms y position
         wy = [wrm[0][1],wrm[1][1],wrm[2][1],wrm[3][1],wrm[4][1]]
         y_pos = sum(wy)/5
-        #print("center: ",center)
-        #print("c x: ",center[0])
-        #print("c y: ",center[1])
+        print("center: ",center)
+        print("c x: ",center[0])
+        print("c y: ",center[1])
         #get a random number between 0.5 and 1.0, this is what the branching worms velocity will sum to
-        total_vel = random.uniform(0.8,1.0)
-        #print("total velocity: ",total_vel)
+        total_vel = random.uniform(0.5,1.0)
+        print("total velocity: ",total_vel)
         #find rise and run between worm center of mass and worm blob center of mass then sum
         pos_sum = ((x_pos-center[0])+(y_pos-center[1]))
         #divide total velocity by pos_sum
         ratio = total_vel/pos_sum
         #result is a velocity in the opposite direction of the worm blob center of mass
-        x_vel = x_pos*random.uniform(0.0,1.0)*ratio
-        y_vel = y_pos*random.uniform(0.0,1.0)*ratio
-        #print("returned array: ", np.array([[x_vel, y_vel]]))
-        return np.array([[x_vel, y_vel]])
+        x_vel = x_pos*ratio
+        y_vel = y_pos*ratio
+        print("returned array: ", np.array([[x_vel, y_vel]]))
+        
+        #now need to check tail to see if a worm needs to follow
+        needs_follower = self.check_tail_of_branch((wrm[4][0], wrm[4][1]), drb, center)
+        print("needs follower: ", needs_follower)
+        #if the tail is meets the threshhold for needing a follower, it returns false
+        if needs_follower == False:
+            return np.array([[x_vel, y_vel]]), True
+        else:
+            return np.array([[x_vel, y_vel]]), False
+    
+    def check_tail_of_branch(self, tail, drb, center):
+        return self.in_circle(center[0], center[1], drb*0.92, tail[0], tail[1])
+        
+        
+    #def continue_branching(self, branches, ):
+        
         
     def in_circle(self, center_x, center_y, radius, x, y):
         square_dist = (center_x - x) ** 2 + (center_y - y) ** 2
@@ -159,8 +175,8 @@ class flock():
                 
     
     def flocking_python(self,c1=0.001,c2=0.01,c3=1,c4=.90):
-        N = 150 #No. of Worms
-        frames = 50 #No. of frames
+        N = 200 #No. of Worms
+        frames = 20 #No. of frames
         limit = 40 #Axis Limits
         L  = limit*2
         ln_wrm = 5 #length of each worm
@@ -182,9 +198,9 @@ class flock():
         #Initialize
         p = P*np.random.vonmises(mu,kappa, size=(N,2))#A random circular probabibility distribution
         wrm_pos = self.init_wrm(ln_wrm,p)#Get our initial Worm Positions
-        #print(len(wrm_pos))
-        #print(len(wrm_pos[0]))
-        #print(len(wrm_pos[0][0]))
+        print(len(wrm_pos))
+        print(len(wrm_pos[0]))
+        print(len(wrm_pos[0][0]))
         v = V*np.random.randn(N,2)#Not really sure how we should set initial velocities
         #Initializing plot
         plt.ion()
@@ -202,19 +218,21 @@ class flock():
             if (np.linalg.norm(v3) > vlimit): #limit maximum velocity
                v3 = v3*vlimit/np.linalg.norm(v3)
             
-            branches, blob_center = self.check_to_branch(wrm_pos, max_branches, branches, i)
-            #print("branches length: ", len(branches))
+            branches, blob_center, drb = self.check_to_branch(wrm_pos, max_branches, branches, i)
+            print("branches length: ", len(branches))
             #print("branches: ", branches)
             for n in range(0, N):
                 p = np.array(wrm_pos[n])
                 pn = p.mean(axis=0)
+                least_rmag = 10000.0
+                least_rmag_index = 0
                 for m in range(0, N):
                     p = np.array(wrm_pos[m])
                     pm = p.mean(axis=0)
                     if m!=n:
                         
                         #Compute vector r from one agent to the next
-                        #print("p[m] is",p[m])
+                        #print("pm is",pm)
                         r = pm-pn
                         
                         if r[0] > L/2:
@@ -229,6 +247,9 @@ class flock():
                             
                         #Compute distance between agents rmag
                         rmag = math.sqrt(r[0]**2+r[1]**2)
+                        least_rmag = min(least_rmag, rmag)
+                        if least_rmag == rmag:
+                            least_rmag_index = m
                         #Compute attraction v1
                         v1[n] += c1*r
                         #Compute Repulsion [non-linear scaling] v2
@@ -240,7 +261,7 @@ class flock():
                 #Update velocity
                 #print("Shapes: v1:",v1[n].shape, "v2:",v2[n].shape,"v3:",v3.shape,v)
                 if n in branches:
-                    v[n] = self.branching_velocity(wrm_pos[n], blob_center)
+                    v[n], needs_follower = self.branching_route(wrm_pos[n], blob_center, n, drb)
                     #print("branching v[n]: ", v[n])
                 else:
                     v[n] = v1[n]+v2[n]+v3+v4

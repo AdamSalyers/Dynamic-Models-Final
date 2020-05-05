@@ -1,6 +1,6 @@
 ###########################################################################
-# March 2019, Orit Peleg, orit.peleg@colorado.edu
-# Code for HW3 CSCI 4314/5314 Dynamic Models in Biology
+# May 2020, Zachary Ryan, Adam Saylers
+# Code for final project CSCI 4314/5314 Dynamic Models in Biology
 ###########################################################################
 
 import numpy as np
@@ -50,7 +50,7 @@ class flock():
         return my_wrms
                 
     def upd_wrm(self, wrm_pos, v, L):
-        print("Original max position: ", wrm_pos[0][0])
+        #print("Original max position: ", wrm_pos[0][0])
         
         for i in range(0,len(wrm_pos)):
             new_head = [0.0, 0.0]
@@ -78,7 +78,7 @@ class flock():
             curr_worm.insert(0,new_head)
             #update position in array that is returned
             wrm_pos[i] = curr_worm
-        print("New head: ",wrm_pos[0][0])
+        #print("New head: ",wrm_pos[0][0])
         
         return wrm_pos
     
@@ -118,7 +118,7 @@ class flock():
             max_y = max(all_y)
             min_y = min(all_y)
             #print("y diff: ", max_y-min_y)
-            drb = (sum([max_x-min_x, max_y-min_y])/4)
+            drb = (sum([max_x-min_x, max_y-min_y])/4)*.95
             #print("drb: ", drb)
             #loop through all worms to see if they are able to branch
             for tempx,tempy in zip(all_x, all_y):
@@ -137,12 +137,12 @@ class flock():
         #get all of worms y position
         wy = [wrm[0][1],wrm[1][1],wrm[2][1],wrm[3][1],wrm[4][1]]
         y_pos = sum(wy)/5
-        print("center: ",center)
-        print("c x: ",center[0])
-        print("c y: ",center[1])
+        #print("center: ",center)
+        #print("c x: ",center[0])
+        #print("c y: ",center[1])
         #get a random number between 0.5 and 1.0, this is what the branching worms velocity will sum to
         total_vel = random.uniform(0.5,1.0)
-        print("total velocity: ",total_vel)
+        #print("total velocity: ",total_vel)
         #find rise and run between worm center of mass and worm blob center of mass then sum
         pos_sum = ((x_pos-center[0])+(y_pos-center[1]))
         #divide total velocity by pos_sum
@@ -150,12 +150,22 @@ class flock():
         #result is a velocity in the opposite direction of the worm blob center of mass
         x_vel = x_pos*ratio
         y_vel = y_pos*ratio
-        print("returned array: ", np.array([[x_vel, y_vel]]))
+        print("returned array before: ", np.array([[x_vel, y_vel]]))
         
         #now need to check tail to see if a worm needs to follow
         needs_follower = self.check_tail_of_branch((wrm[4][0], wrm[4][1]), drb, center)
-        print("needs follower: ", needs_follower)
+        #print("needs follower: ", needs_follower)
         #if the tail is meets the threshhold for needing a follower, it returns false
+        if x_vel > 1:
+            x_vel = 1 * random.uniform(0.5,1.0)
+        if x_vel < -1:
+            x_vel = -1 * random.uniform(0.5,1.0)
+        if y_vel > 1:
+            y_vel = 1 * random.uniform(0.5,1.0)
+        if y_vel < -1:
+            y_vel = -1 * random.uniform(0.5,1.0)
+            
+        print("returned array after: ", np.array([[x_vel, y_vel]]))
         if needs_follower == False:
             return np.array([[x_vel, y_vel]]), True
         else:
@@ -165,8 +175,6 @@ class flock():
         return self.in_circle(center[0], center[1], drb*0.92, tail[0], tail[1])
         
         
-    #def continue_branching(self, branches, ):
-        
         
     def in_circle(self, center_x, center_y, radius, x, y):
         square_dist = (center_x - x) ** 2 + (center_y - y) ** 2
@@ -175,7 +183,7 @@ class flock():
                 
     
     def flocking_python(self,c1=0.001,c2=0.01,c3=1,c4=.90):
-        N = 200 #No. of Worms
+        N = 400 #No. of Worms
         frames = 20 #No. of frames
         limit = 40 #Axis Limits
         L  = limit*2
@@ -192,7 +200,7 @@ class flock():
         #c4 = 0.01 #Randomness scaling factor
         vlimit = 1 #Maximum velocity
         
-        max_branches = int(N*0.10)
+        max_branches = int(N*0.20)
         branches = []
 
         #Initialize
@@ -274,6 +282,7 @@ class flock():
             
             plt.xlim(-limit, limit)
             plt.ylim(-limit, limit)
+            plt.title("Step number: " + str(i))
             for worms in wrm_pos:
                 x = [worms[0][0],worms[1][0],worms[2][0],worms[3][0],worms[4][0]]
                 y = [worms[0][1],worms[1][1],worms[2][1],worms[3][1],worms[4][1]]
